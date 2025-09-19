@@ -1,61 +1,179 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🚗 Car Wash On-Demand Platform – Database Design
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## 📌 Overview
 
-## About Laravel
+Database ini dirancang untuk mendukung **platform pemesanan cuci mobil on-demand** skala nasional (mirip konsep Gojek/Grab, tapi untuk car wash).
+Fitur utama yang diakomodasi antara lain:
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+* Pemesanan jadwal cuci mobil
+* Pembayaran online (e-wallet, bank, kartu, COD)
+* Tracking teknisi
+* Sistem langganan
+* Loyalty points & promo
+* Ulasan dan rating
+* Notifikasi ke user & mitra
+* Laporan mitra dan manajemen kota
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🗄️ Struktur Database
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 1. **Users**
 
-## Learning Laravel
+Menyimpan semua akun (customer, partner, admin).
+Field utama:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+* `role` → membedakan jenis akun
+* `points_balance` → saldo poin loyalty
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+Relasi:
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+* `users` → `orders` (customer\_id)
+* `users` → `partners` (owner\_user\_id)
+* `users` → `payments` (pembayaran)
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### 2. **Partners & Technicians**
 
-### Premium Partners
+* **partners** → profil bisnis mitra cuci mobil (alamat, radius, rating).
+* **technicians** → opsional, jika mitra punya banyak teknisi/pekerja lapangan.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Relasi:
 
-## Contributing
+* 1 partner dimiliki 1 user (`owner_user_id`).
+* 1 partner bisa punya banyak teknisi & banyak pesanan.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+### 3. **Services & Partner Services**
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+* **services** → katalog layanan umum (cuci luar, cuci lengkap, detailing, dll).
+* **partner\_services** → pivot table: daftar harga & durasi tiap mitra.
 
-## Security Vulnerabilities
+Relasi:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+* 1 partner bisa menawarkan banyak service dengan harga berbeda.
+* Digunakan untuk snapshot saat pesanan dibuat.
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 4. **Orders**
+
+Tabel inti transaksi.
+Field utama:
+
+* `scheduled_at`, `placed_at` → jadwal & waktu pemesanan
+* `status` → requested, accepted, in\_progress, completed, cancelled
+* `payment_status` → pending, paid, failed
+* `address_text`, `latitude`, `longitude` → lokasi pelanggan
+
+Relasi:
+
+* `customer_id` → users
+* `partner_id` → partners
+* `service_id` → services
+* `technician_id` (opsional) → teknisi lapangan
+
+---
+
+### 5. **Payments**
+
+Detail pembayaran untuk order atau subscription.
+Field:
+
+* `method` (qris, ewallet, transfer, kartu, COD)
+* `status` (pending, paid, failed, refunded)
+* `provider_ref` → reference dari payment gateway
+
+Relasi:
+
+* 1 order → 1 payment
+* Bisa juga untuk subscription (paket langganan)
+
+---
+
+### 6. **Subscriptions**
+
+Dua tabel utama:
+
+* `subscription_plans` → paket langganan (misal 4x/bulan, unlimited, dll)
+* `user_subscriptions` → langganan aktif tiap user
+* `subscription_payments` → pembayaran per periode
+
+Fungsi:
+
+* Mendukung recurring revenue
+* Menghitung sisa kuota cuci per periode
+
+---
+
+### 7. **Reviews**
+
+Pelanggan memberi ulasan setelah order selesai.
+Field:
+
+* `rating` (1–5)
+* `comment`
+* `photo_url` (opsional, bukti foto hasil cuci)
+
+Relasi:
+
+* 1 order hanya bisa punya 1 review
+* Terhubung ke customer & partner
+
+---
+
+### 8. **Loyalty & Promo**
+
+* **points\_history** → log perolehan & penggunaan poin customer
+* **promos** → kode promo (diskon, voucher)
+* **order\_promos** → pivot: promo apa yang dipakai di order
+
+Fungsi:
+
+* Meningkatkan retensi pelanggan
+* Memungkinkan sistem rewards
+
+---
+
+### 9. **Notifications**
+
+Log notifikasi yang dikirim ke user atau mitra.
+Field:
+
+* `type` → order\_status, promo, dsb
+* `sent_via` → push, SMS, email, WhatsApp
+* Bisa dipakai untuk histori notifikasi & troubleshooting
+
+---
+
+## 🔗 Hubungan Utama (ERD)
+
+* `users (role=customer)` → `orders (customer_id)`
+* `users (role=partner)` → `partners (owner_user_id)`
+* `partners` → `partner_services` → `services`
+* `orders` → `payments`, `reviews`, `order_promos`
+* `users` → `user_subscriptions` → `subscription_plans`
+* `points_history` → melacak poin tiap user
+
+---
+
+## 🚀 Roadmap Implementasi
+
+* **Tahap 1 (MVP)** → `users`, `partners`, `services`, `partner_services`, `orders`, `payments`, `reviews`
+* **Tahap 2 (Growth)** → tambah `promos`, `points_history`, `notifications`
+* **Tahap 3 (Retention)** → aktifkan `subscriptions` & loyalty system
+* **Tahap 4 (Enterprise)** → laporan partner detail, auto payout, audit log
+
+---
+
+## 🛠️ Teknologi yang Digunakan
+
+* **Database**: MySQL
+* **ORM**: Eloquent (Laravel 12)
+
+---
+
+## 📖 Cara Membaca Diagram
+
+Buka file DBML di [dbdiagram.io](https://dbdiagram.io), paste skema DBML lengkap, maka akan muncul visualisasi ERD.
+Setiap entitas sudah memiliki relasi FK sesuai di schema.
