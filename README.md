@@ -175,5 +175,5 @@ Field:
 
 ## 📖 Cara Membaca Diagram
 
-Buka file DBML di [dbdiagram.io](https://dbdiagram.io), paste skema DBML lengkap, maka akan muncul visualisasi ERD.
+Buka file DBML di [dbdiagram.io](https://dbdiagram.io/d/68cccd9a5779bb7265302b63), paste skema DBML lengkap, maka akan muncul visualisasi ERD.
 Setiap entitas sudah memiliki relasi FK sesuai di schema.
